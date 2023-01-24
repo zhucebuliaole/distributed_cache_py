@@ -1,7 +1,7 @@
 <!--
  * @Author: Qile Liang
  * @Date: 2023-01-18 21:01:32
- * @LastEditTime: 2023-01-18 21:47:39
+ * @LastEditTime: 2023-01-24 16:13:44
  * @LastEditors: Qile Liang
  * @Description: 
  * @FilePath: \distributed_cache_py\day5-distributed-query\notes.md
@@ -67,7 +67,7 @@ class http_server:
 ```
 新增成员变量 **peers**，类型是一致性哈希算法的 Map，用来根据具体的 key 选择节点。  
 新增成员变量 **httpGetters**，映射远程节点与对应的 httpGetter。每一个远程节点对应一个 httpGetter，因为 httpGetter 与远程节点的地址 baseURL 有关。
-**Set()**方法将传入的peers放入一致性哈希环中，并建立每一个peer对应的getter的映射。  
+**Set()**方法将传入的peers（节点）放入一致性哈希环中，并建立每一个peer对应的getter的映射。  
 **Pickpeer**方法根据传入的key，使用一致性hash的get方法得到节点，再通过httpgetters找到对应的getter（也就是对应的http客户端）。
 ## 修改主流程
 ```python
@@ -105,4 +105,4 @@ class Group():
 新增RegisterPeers()方法，将实现了PeerPicker 接口的 HTTPPool 注入到 Group 中。也就是说每一个新的节点的httpserver会被同一个group统一管理。  
 修改 load 方法，使用 PickPeer() 方法选择节点，若非本机节点，则调用 getFromPeer() 从远程获取。若是本机节点或失败，则回退到 getLocally()。
 新增 getFromPeer() 方法，使用实现了 PeerGetter 接口的 httpGetter 从访问远程节点，获取缓存值。  
-需要注意的是：**这里的group还不具备真正在网络中传输的能力**，后续需要添加一些序列化，反序列化的组件。这里只能使用multiprocessing在一个文件中做一个进程池，并将group传入不同的，作为cache server的进程中。
+需要注意的是：每个节点有自己的无数个group，当group重名是，就意味着是**一类资源**，当同一类资源本地不存在时，则去请求peer看peer的同名group下是否有hit的资源。计算出该key应该存在哪一个节点（使用一致性hash算法算出），去该节点尝试获取。
